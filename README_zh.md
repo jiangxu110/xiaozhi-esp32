@@ -120,6 +120,24 @@
 
 请使用 `release/v6.1` 分支，避免使用 `v6.1` 发布标签；该标签在 ESP32-C3 上存在 Wi-Fi 初始化失败的报告，详见 [#2344](https://github.com/78/xiaozhi-esp32/issues/2344)。切换 SDK 版本后，请在 ESP-IDF 目录执行 `git submodule update --init --recursive`，重新加载其 `export.sh`，并在本项目中执行 `idf.py fullclean` 后重新编译。
 
+### 持续集成
+
+[Build Default Board](.github/workflows/build-default-board.yml) 工作流在每次推送到 `main` 和每个 PR 时，使用官方 ESP-IDF 容器编译默认板（`bread-compact-wifi`，ESP32-S3），在运行之间缓存 `ccache`，超过 30 分钟即判定失败。
+
+在仓库根目录执行同样的镜像和命令即可本地复现：
+
+```sh
+docker run --rm -it \
+  -v "$PWD:/project" -w /project \
+  -e IDF_CCACHE_ENABLE=1 \
+  -e CCACHE_DIR=/root/.ccache \
+  -v "$HOME/.ccache:/root/.ccache" \
+  espressif/idf:release-v6.1 \
+  bash -c 'source "$IDF_PATH/export.sh" && python scripts/build.py bread-compact-wifi --name bread-compact-wifi'
+```
+
+构建产物为 `build/merged-binary.bin`，与 CI 上传的产物一致。`bread-compact-wifi` 有两个变体，非交互构建必须显式传 `--name`。镜像自带 `ccache` 并通过 `IDF_CCACHE_ENABLE=1` 启用；把 `CCACHE_DIR` 挂载到主机目录（或 Docker 卷）可以让重复构建更快。如果本机已安装 ESP-IDF `release/v6.1`，source 其 `export.sh` 后执行同样的 `python scripts/build.py bread-compact-wifi --name bread-compact-wifi` 命令即可。
+
 ### 开发者文档
 
 - [自定义开发板指南](docs/custom-board_zh.md) - 学习如何为小智 AI 创建自定义开发板

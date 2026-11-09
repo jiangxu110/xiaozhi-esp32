@@ -1,0 +1,61 @@
+# Minimal compile check: one board only, so a red run has an obvious cause.
+# The change-aware variant matrix lives in build.yml; this workflow stays the
+# small, fast front door while the full matrix evolves.
+name: Build Default Board
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build bread-compact-wifi
+    runs-on: ubuntu-latest
+    container:
+      image: espressif/idf:release-v6.1
+    # A cold build pulls the image and compiles from scratch; a warm ccache
+    # run is much faster. Anything beyond 30 minutes is treated as a failure.
+    timeout-minutes: 30
+    env:
+      # actions/cache persists this directory between runs, and the default
+      # board build is identical, so later runs compile mostly from cache.
+      CCACHE_DIR: /root/.ccache
+      IDF_CCACHE_ENABLE: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Restore ccache
+        uses: actions/cache@v6
+        with:
+          path: /root/.ccache
+          key: ccache-${{ runner.os }}-idf-release-v6.1-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ runner.os }}-idf-release-v6.1-
+
+      - name: Build default board
+        shell: bash
+        run: |
+          source "$IDF_PATH/export.sh"
+          # bread-compact-wifi is the ESP32-S3 Kconfig default; it has two
+          # variants, so non-interactive builds must name one explicitly.
+          python scripts/build.py bread-compact-wifi --name bread-compact-wifi
+
+      - name: Show ccache statistics
+        shell: bash
+        run: ccache --show-stats
+
+      - name: Upload firmware
+        uses: actions/upload-artifact@v7
+        with:
+          name: xiaozhi_bread-compact-wifi_${{ github.sha }}
+          path: build/merged-binary.bin
+          if-no-files-found: error

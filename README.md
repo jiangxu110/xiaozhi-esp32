@@ -120,6 +120,24 @@ The firmware connects to the official [xiaozhi.me](https://xiaozhi.me) server by
 
 Use the `release/v6.1` branch rather than the `v6.1` release tag: an ESP32-C3 Wi-Fi initialization failure with that tag is reported in [#2344](https://github.com/78/xiaozhi-esp32/issues/2344). After switching SDK revisions, run `git submodule update --init --recursive` in the ESP-IDF directory, source its `export.sh`, and run `idf.py fullclean` in this project before rebuilding.
 
+### Continuous Integration
+
+The [Build Default Board](.github/workflows/build-default-board.yml) workflow compiles the default board (`bread-compact-wifi`, ESP32-S3) in the official ESP-IDF container on every push to `main` and every pull request, caches `ccache` between runs, and fails after 30 minutes.
+
+To reproduce the same build locally, run the same image and command from the repository root:
+
+```sh
+docker run --rm -it \
+  -v "$PWD:/project" -w /project \
+  -e IDF_CCACHE_ENABLE=1 \
+  -e CCACHE_DIR=/root/.ccache \
+  -v "$HOME/.ccache:/root/.ccache" \
+  espressif/idf:release-v6.1 \
+  bash -c 'source "$IDF_PATH/export.sh" && python scripts/build.py bread-compact-wifi --name bread-compact-wifi'
+```
+
+The build writes `build/merged-binary.bin`, which is the artifact CI uploads. `bread-compact-wifi` has two variants, so non-interactive builds must pass `--name`. The image ships `ccache` and enables it with `IDF_CCACHE_ENABLE=1`; mounting `CCACHE_DIR` from the host (or a Docker volume) makes repeated builds faster. If you already have ESP-IDF `release/v6.1` installed locally, source its `export.sh` and run the same `python scripts/build.py bread-compact-wifi --name bread-compact-wifi` command.
+
 ### Developer Documentation
 
 - [Custom Board Guide](docs/custom-board.md) - Learn how to create custom boards for XiaoZhi AI
