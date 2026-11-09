@@ -120,6 +120,24 @@ Feishuドキュメントチュートリアルをご覧ください：
 
 `v6.1`リリースタグではなく、`release/v6.1`ブランチを使用してください。このタグではESP32-C3のWi-Fi初期化に失敗する問題が[#2344](https://github.com/78/xiaozhi-esp32/issues/2344)で報告されています。SDKのリビジョンを切り替えた後は、ESP-IDFディレクトリで`git submodule update --init --recursive`を実行し、その`export.sh`を読み込み直してから、本プロジェクトで`idf.py fullclean`を実行して再ビルドしてください。
 
+### 継続的インテグレーション
+
+[Build Default Board](.github/workflows/build-default-board.yml) ワークフローは、`main` へのプッシュ時とプルリクエスト時に、公式 ESP-IDF コンテナでデフォルトボード（`bread-compact-wifi`、ESP32-S3）をビルドし、実行間で `ccache` をキャッシュします。30 分を超えると失敗として扱われます。
+
+リポジトリのルートで同じイメージとコマンドを実行すると、ローカルで再現できます。
+
+```sh
+docker run --rm -it \
+  -v "$PWD:/project" -w /project \
+  -e IDF_CCACHE_ENABLE=1 \
+  -e CCACHE_DIR=/root/.ccache \
+  -v "$HOME/.ccache:/root/.ccache" \
+  espressif/idf:release-v6.1 \
+  bash -c 'source "$IDF_PATH/export.sh" && python scripts/build.py bread-compact-wifi --name bread-compact-wifi'
+```
+
+ビルド成果物は `build/merged-binary.bin` で、CI がアップロードするものと同じです。`bread-compact-wifi` には 2 つのバリアントがあるため、非対話ビルドでは `--name` の指定が必須です。イメージには `ccache` が同梱され `IDF_CCACHE_ENABLE=1` で有効化されています。`CCACHE_DIR` をホスト側のディレクトリ（または Docker ボリューム）にマウントすると、繰り返しのビルドが速くなります。ESP-IDF `release/v6.1` をインストール済みの場合は、その `export.sh` を読み込んで同じ `python scripts/build.py bread-compact-wifi --name bread-compact-wifi` を実行してください。
+
 ### 開発者ドキュメント
 
 - [カスタム開発ボードガイド](docs/custom-board.md) - シャオジーAI用のカスタム開発ボード作成方法
